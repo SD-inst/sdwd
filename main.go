@@ -16,6 +16,8 @@ import (
 
 const sdServiceName = "sd.service"
 
+var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error"}
+
 var params struct {
 	DockerDir   string `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
 	ServiceName string `short:"s" description:"Stable diffusion docker-compose service name to watch and restart" required:"true"`
@@ -46,13 +48,16 @@ func watchOOM(dockerDir string, serviceName string, restarter chan string) {
 		logCmd.Start()
 		for s.Scan() {
 			line := s.Text()
-			if strings.Contains(line, "torch.cuda.OutOfMemoryError") {
-				log.Println("Stable Diffusion OOM'd, restarting...")
-				restarter <- serviceName
+			for _, l := range badLines {
+				if strings.Contains(line, l) {
+					log.Println("Stable Diffusion misbehaving, restarting...")
+					restarter <- serviceName
+				}
 			}
 		}
 		logCmd.Wait()
 		time.Sleep(time.Second * 5)
+		log.Println("Reconnecting to the log...")
 	}
 }
 
