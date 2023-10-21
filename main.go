@@ -16,11 +16,12 @@ import (
 
 const sdServiceName = "sd.service"
 
-var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError"}
+var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError", "ValueError: range"}
 
 var params struct {
 	DockerDir   string `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
 	ServiceName string `short:"s" description:"Stable diffusion docker-compose service name to watch and restart" required:"true"`
+	FifoPath    string `short:"f" description:"FIFO control file"`
 }
 
 func restarter(dockerDir string) chan string {
@@ -36,7 +37,7 @@ func restarter(dockerDir string) chan string {
 	return svcChan
 }
 
-func watchOOM(dockerDir string, serviceName string, restarter chan string) {
+func watchLog(dockerDir string, serviceName string, restarter chan string) {
 	for {
 		logCmd := exec.Command("docker", "compose", "logs", serviceName, "-n", "1", "-f")
 		logCmd.Dir = dockerDir
@@ -67,7 +68,13 @@ func main() {
 		os.Exit(1)
 	}
 	restarterChan := restarter(params.DockerDir)
-	go watchOOM(params.DockerDir, params.ServiceName, restarterChan)
+	go watchLog(params.DockerDir, params.ServiceName, restarterChan)
+	if params.FifoPath != "" {
+		err = fifo(params.FifoPath, params.ServiceName, restarterChan)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	conn, err := dbus.NewSystemConnectionContext(context.Background())
 	if err != nil {
 		log.Fatal(err)
