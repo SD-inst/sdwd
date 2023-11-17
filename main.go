@@ -19,9 +19,10 @@ const sdServiceName = "sd.service"
 var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError", "ValueError: range"}
 
 var params struct {
-	DockerDir   string `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
-	ServiceName string `short:"s" description:"Stable diffusion docker-compose service name to watch and restart" required:"true"`
-	FifoPath    string `short:"f" description:"FIFO control file"`
+	DockerDir      string `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
+	ServiceName    string `short:"s" description:"Stable diffusion docker-compose service name to watch and restart" required:"true"`
+	FifoPath       string `short:"f" description:"FIFO control file"`
+	PrometheusPort int    `short:"p" description:"Prometheus HTTP metrics port"`
 }
 
 func restarter(dockerDir string) chan string {
@@ -37,7 +38,7 @@ func restarter(dockerDir string) chan string {
 	return svcChan
 }
 
-func watchLog(dockerDir string, serviceName string, restarter chan string) {
+func watchLog(dockerDir string, serviceName string, restarter chan string, promchan chan<- MetricUpdate) {
 	for {
 		logCmd := exec.Command("docker", "compose", "logs", serviceName, "-n", "1", "-f")
 		logCmd.Dir = dockerDir
@@ -53,6 +54,7 @@ func watchLog(dockerDir string, serviceName string, restarter chan string) {
 				if strings.Contains(line, l) {
 					log.Println("Stable Diffusion misbehaving, restarting...")
 					restarter <- serviceName
+					promchan <- MetricUpdate{Reason: "python", Value: 1}
 				}
 			}
 		}
@@ -67,10 +69,11 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+	promchan := addMetrics(params.PrometheusPort)
 	restarterChan := restarter(params.DockerDir)
-	go watchLog(params.DockerDir, params.ServiceName, restarterChan)
+	go watchLog(params.DockerDir, params.ServiceName, restarterChan, promchan)
 	if params.FifoPath != "" {
-		err = fifo(params.FifoPath, params.ServiceName, restarterChan)
+		err = fifo(params.FifoPath, params.ServiceName, restarterChan, promchan)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -112,6 +115,7 @@ func main() {
 				if state.Value.Value() == "active" {
 					log.Println("sd unit is active, restarting")
 					restarterChan <- params.ServiceName
+					promchan <- MetricUpdate{Reason: "xid", Value: 1}
 				} else {
 					log.Println("Invalid sd unit state, ignoring:", state.Value.Value())
 				}

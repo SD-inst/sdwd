@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-func fifo(path string, serviceName string, restarterChan chan string) error {
+func fifo(path string, serviceName string, restarterChan chan string, promchan chan<- MetricUpdate) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -36,6 +36,7 @@ func fifo(path string, serviceName string, restarterChan chan string) error {
 			case "restart":
 				log.Printf("Restarting %s by FIFO command %s...", serviceName, cmd)
 				restarterChan <- serviceName
+				promchan <- MetricUpdate{Reason: "timeout", Value: 1}
 			default:
 				log.Printf("Unknown command %s", cmd)
 			}
