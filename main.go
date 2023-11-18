@@ -83,11 +83,18 @@ func main() {
 		log.Fatal(err)
 	}
 	j, err := sdjournal.NewJournal()
-	j.AddMatch(sdjournal.SD_JOURNAL_FIELD_SYSLOG_IDENTIFIER + "=kernel")
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = j.AddMatch(sdjournal.SD_JOURNAL_FIELD_SYSLOG_IDENTIFIER + "=kernel")
+	if err != nil {
+		log.Print(err)
+	}
 	err = j.SeekTail()
+	if err != nil {
+		log.Print(err)
+	}
+	_, err = j.Previous()
 	if err != nil {
 		log.Print(err)
 	}
