@@ -19,10 +19,11 @@ const sdServiceName = "sd.service"
 var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError", "ValueError: range"}
 
 var params struct {
-	DockerDir      string `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
-	ServiceName    string `short:"s" description:"Stable diffusion docker-compose service name to watch and restart" required:"true"`
-	FifoPath       string `short:"f" description:"FIFO control file"`
-	PrometheusPort int    `short:"p" description:"Prometheus HTTP metrics port"`
+	DockerDir       string   `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
+	ServiceName     string   `short:"s" description:"Stable diffusion docker compose service name to watch and restart" required:"true"`
+	AllowedServices []string `short:"a" description:"Services that are also allowed to be restarted"`
+	FifoPath        string   `short:"f" description:"FIFO control file"`
+	PrometheusPort  int      `short:"p" description:"Prometheus HTTP metrics port"`
 }
 
 func restarter(dockerDir string) chan string {
@@ -73,7 +74,7 @@ func main() {
 	restarterChan := restarter(params.DockerDir)
 	go watchLog(params.DockerDir, params.ServiceName, restarterChan, promchan)
 	if params.FifoPath != "" {
-		err = fifo(params.FifoPath, params.ServiceName, restarterChan, promchan)
+		err = fifo(params.FifoPath, append([]string{params.ServiceName}, params.AllowedServices...), restarterChan, promchan)
 		if err != nil {
 			log.Fatal(err)
 		}
