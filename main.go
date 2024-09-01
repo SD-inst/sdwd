@@ -12,7 +12,7 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-var badLines = []string{"torch.cuda.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError", "ValueError: range"}
+var badLines = []string{"torch.cuda.OutOfMemoryError", "torch.OutOfMemoryError", "TypeError: VanillaTemporalModule.forward()", "RuntimeError: Expected all tensors", "RuntimeError: The size of tensor a", "RuntimeError: CUDA error", "einops.EinopsError", "ZeroDivisionError", "ValueError: range", "cudaMalloc failed: out of memory"}
 
 var params struct {
 	DockerDir      string   `short:"d" description:"Main directory with docker-compose.yml" required:"true"`
