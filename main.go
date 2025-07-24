@@ -59,7 +59,7 @@ func watchLog(dockerDir string, serviceNames []string, restarter chan string, pr
 				}
 				logCmd.Wait()
 				time.Sleep(time.Second * 5)
-				log.Println("Reconnecting to the log...")
+				log.Printf("Reconnecting to the log of %s...", serviceName)
 			}
 		}()
 	}
